@@ -5,7 +5,7 @@ recursive_loading: FALSE
 munging: FALSE
 logging: FALSE
 load_libraries: TRUE
-libraries: reshape2, tidyverse, ggplot2, stringr, lubridate, caretEnsemble, data.table, h2o
+libraries: reshape2, tidyverse, ggplot2, stringr, lubridate, caretEnsemble, data.table, h2o, zoo
 as_factors: FALSE
 data_tables: TRUE
 attach_internal_libraries: FALSE
