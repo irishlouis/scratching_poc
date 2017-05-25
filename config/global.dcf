@@ -1,0 +1,11 @@
+version: 0.7
+data_loading: FALSE
+cache_loading: TRUE
+recursive_loading: FALSE
+munging: FALSE
+logging: FALSE
+load_libraries: TRUE
+libraries: reshape2, tidyverse, ggplot2, stringr, lubridate, caretEnsemble, data.table, h2o
+as_factors: FALSE
+data_tables: TRUE
+attach_internal_libraries: FALSE
