@@ -26,7 +26,7 @@ test[,y]  <- as.factor(test[,y])
 # algorithms by modifying the hyper param code below.
 
 search_criteria <- list(strategy = "RandomDiscrete", 
-                        max_runtime_secs = 1000)
+                        max_runtime_secs = 1200)
 nfolds <- 5
 
 # GBM Hyperparamters
@@ -80,9 +80,9 @@ gbm_models <- lapply(gbm_grid@model_ids, function(model_id) h2o.getModel(model_i
 
 
 # Deeplearning Hyperparamters
-activation_opt <- c("Rectifier", "RectifierWithDropout", 
-                    "Maxout", "MaxoutWithDropout") 
-hidden_opt <- list(c(10,10), c(20,15), c(50,50,50), c(200,200), c(100, 100, 100))
+activation_opt <- c("Rectifier", "RectifierWithDropout")
+ #  ,"Maxout", "MaxoutWithDropout") 
+hidden_opt <- list(c(10,10), c(20,15), c(50,50,50), c(100, 100),  c(200,200), c(100, 100, 100), c(200, 200, 200))
 l1_opt <- c(0, 1e-3, 1e-5)
 l2_opt <- c(0, 1e-3, 1e-5)
 hyper_params <- list(activation = activation_opt,
@@ -94,9 +94,11 @@ dl_grid <- h2o.grid("deeplearning", x = x, y = y,
                     training_frame = train,
                     epochs = 15,
                     seed = 1,
-                    nfolds = nfolds,
+                    nfolds = nfolds, 
                     fold_assignment = "Modulo",
                     keep_cross_validation_predictions = TRUE,                    
+                    variable_importances = TRUE,
+                    balance_classes = TRUE,
                     hyper_params = hyper_params,
                     search_criteria = search_criteria)
 h2o.getGrid(dl_grid@grid_id, sort_by="AUC", decreasing = T)
@@ -136,10 +138,39 @@ h2o.varimp(gbm_models[[1]])
 dl_grid <- h2o.getGrid(dl_grid@grid_id, sort_by="AUC", decreasing = T)
 dl_models <- lapply(dl_grid@model_ids, function(model_id) h2o.getModel(model_id))
 h2o.confusionMatrix(dl_models[[1]], test)
+h2o.performance(dl_models[[1]], test)
+h2o.varimp(dl_models[[1]])
+
 dl_grid <- h2o.getGrid(dl_grid@grid_id, sort_by="logloss", decreasing = F)
 dl_models <- lapply(dl_grid@model_ids, function(model_id) h2o.getModel(model_id))
 h2o.confusionMatrix(dl_models[[1]], test)
+h2o.performance(dl_models[[1]], test)
 h2o.varimp(dl_models[[1]])
+
+# need to capture F1 threshold criteria for future predictions 
+f1_threshold <- h2o.performance(dl_models[[1]], test)@metrics$max_criteria_and_metric_scores[1,]
+
+confusionMatrix(ifelse(h2o.predict(dl_models[[1]], test)$scratch %>% as.vector() > f1_threshold$threshold,
+                       "scratch", "not_scratch"),
+                test[, y] %>% as.vector)
+
+# visualise
+r <- ifelse(h2o.predict(dl_models[[1]], test)$scratch %>% as.vector() > f1_threshold$threshold,
+       "scratch", "not_scratch")
+
+poc.summary[-s] %>% 
+  mutate(pred_result = r) %>%
+  filter(pred_result != scratch_event) %>% 
+  select(epoch_id) %>% as.vector()
+
+poc.summary[-s] %>% 
+  mutate(pred_result = r) %>% 
+  select(epoch_id, scratch_event, pred_result) %>%
+  melt(id.vars = "epoch_id") %>%
+  ggplot(aes(epoch_id, value)) + 
+    geom_point(aes(col = value, shape = variable)) +
+    facet_wrap(~variable, nrow = 2)
+
 # same model is best in both instances
 ## activation = Rectifier hidden = [200, 200] l1 = 0.0 l2 = 0.001
 
@@ -152,7 +183,7 @@ h2o.confusionMatrix(glm_models[[1]], test)
 h2o.varimp(glm_models[[1]])
 
 # save best model - dnn
-h2o.saveModel(dl_models[[1]], path = "ml_models/training_dnn_model")
+h2o.saveModel(dl_models[[1]], path = "ml_models/")
 
 # train model on all data for further testing
 all_data <- as.h2o(poc.summary %>% select(-device_id, -epoch_id))
@@ -165,13 +196,24 @@ poc_model <- h2o.deeplearning("poc_dnn_model",
                               seed = 1,
                               nfolds = nfolds,
                               fold_assignment = "Modulo",
+                              variable_importances = TRUE,
+                              balance_classes = TRUE,
                               keep_cross_validation_predictions = TRUE,
                               activation = "Rectifier", 
-                              hidden = c(200, 200), 
+                              hidden = c(200, 200, 200), 
                               l1 = 0.0, 
                               l2 = 0.001)
 summary(poc_model)
-h2o.saveModel(poc_model, path = "ml_models/poc_model")
+h2o.performance(poc_model, all_data)
 
-h2o.removeAll()
-h2o.shutdown(prompt = FALSE)
+
+confusionMatrix(ifelse(h2o.predict(poc_model, all_data)$scratch %>% as.vector() > f1_threshold$threshold,
+                       "scratch", "not_scratch"),
+                all_data[, y] %>% as.vector)
+
+
+
+h2o.saveModel(poc_model, path = "ml_models/")
+
+h2o::h2o.removeAll()
+h2o::h2o.shutdown(prompt = FALSE)

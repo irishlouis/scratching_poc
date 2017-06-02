@@ -1,6 +1,15 @@
 # summarise POC data
 poc.summary <- summarise.data(data = poc.raw.data)
 
+# summarise test1 data
+test1.summary <- summarise.data(data = test1.raw.data)
+cache("test1.summary")
+
+# summarise test2 data
+test2.summary <- summarise.data(data = test2.raw.data)
+cache("test2.summary")
+
+
 ## add scratching label from subject diary
 
 scratching.times <- c("2017-05-23 10:27:10", "2017-05-23 10:27:20",
