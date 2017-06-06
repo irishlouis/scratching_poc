@@ -8,3 +8,4 @@ poc.summary[, (scale.cols) := lapply(.SD, scale), ,
 
 head(poc.summary)
 cache("poc.summary")
+rm(scale.cols)

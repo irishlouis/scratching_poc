@@ -1,21 +1,28 @@
-require(caret) 
-require(dplyr)
-require(ISLR) # use Auto dataset
+rm(poc.raw.data)
 
-dt <- Auto %>% mutate(cyl = as.factor(cylinders)) %>% select(-origin, -name, -cylinders)
+# partition data
+set.seed(6354987)
+s <- createDataPartition(poc.summary$scratch_event, p = 0.7, list = FALSE)
+training <- poc.summary[s][,':='(
+  device_id = NULL,
+  epoch_id = NULL)]
+testing <- poc.summary[-s][,':='(
+  device_id = NULL,
+  epoch_id = NULL)]
 
-head(dt)
+######################################################################################
 
 # bog standard method
 ctrl <- trainControl(
   method='repeatedcv',
   repeats=5
 )
-sed.seed(456)
-mdl <- train(cyl ~.,
+set.seed(456)
+mdl <- train(scratch_event ~.,
              method = "nnet",
              metric = "Kappa",
-             data = dt,
+             data = training,
+             trace = FALSE,
              trControl = ctrl)
 
 ######################################################################################
@@ -26,51 +33,68 @@ ctrl1 <- trainControl(
   search="random"
 )
 set.seed(456)
-mdl1 <- train(cyl ~.,
+mdl1 <- train(scratch_event ~.,
               method = "nnet",
               metric = "Kappa",
-              data = dt, 
+              data = training, 
               trControl = ctrl1, 
-              tuneLength = 10)
+              tuneLength = 10,
+              trace = FALSE)
 
 # compare to original model
 ## new model is little bit better
 compare_models(mdl, mdl1)
 
 ######################################################################################
-# give model specific tuning grid
+# give model specific tuning grid - SLOW
 ctrl2 <- trainControl(
   method='repeatedcv',
-  repeats=5
+  repeats= 5
 )
-nnet_grid <- expand.grid(size = c(1, 3, 6), 
-                         decay = seq(.3, .4, .01))
+nnet_grid <- expand.grid(size = c(1, 5, 8), 
+                         decay = seq(0, .2, .02))
 
+# this gets very big very quickly
 message("note no. of models = ", nrow(nnet_grid), " x number of CV (5)")
-# this gets very big very quickly, have narrowed grid here to area of interest
 
 set.seed(456)
-mdl2 <- train(cyl ~.,
+mdl2 <- train(scratch_event ~.,
               method = "nnet",
               metric = "Kappa",
-              data = dt, 
+              data = training, 
               trControl = ctrl2, 
-              tuneGrid = nnet_grid)
+              tuneGrid = nnet_grid,
+              trace = FALSE)
 
-# compare to original model
+# compare to previous model
 compare_models(mdl, mdl2)
+compare_models(mdl1, mdl2)
+
+# cache models
+lapply(c("mdl", "mdl1", "mdl2"), cache)
+
+# compare results on testing
+confusionMatrix(predict(mdl,  testing), testing$scratch_event)
+confusionMatrix(predict(mdl1, testing), testing$scratch_event)
+confusionMatrix(predict(mdl2, testing), testing$scratch_event)
+
+
+
+
 
 ######################################################################################
 # can we improve model performance with tuning paramters
 require(rBayesianOptimization)
-ctrl3 <- trainControl(method = "repeatedcv", repeats = 5)
+ctrl3 <- trainControl(method = "repeatedcv", 
+                      repeats = 5)
 
 # function to opt model
 ## returns what is to be maximised (I'm using Kappa) - if looking to minimised something (RMSE) return -ive
 nnet.fit.bayes <- function(size, decay) {
   size <- round(size, 0)
   txt <- capture.output(
-    mod <- train(cyl ~ ., data = dt,
+    mod <- train(scratch_event ~ ., 
+                 data = training,
                  method = "nnet",
                  metric = "Kappa",
                  trControl = ctrl3,
@@ -81,7 +105,7 @@ nnet.fit.bayes <- function(size, decay) {
 }
 # set bounds for search
 bounds <- list(
-  size = c(size = 1, size = 15),
+  size = c(size = 1, size = 50),
   decay = c(decay = 0.0001, decay = .5))
 
 # search for optimum model parameters
@@ -97,14 +121,15 @@ ba_search <- BayesianOptimization(FUN = nnet.fit.bayes,
 
 # use best found values to train model
 set.seed(456)
-mdl3 <- train(cyl ~ ., 
-              data = dt,
+mdl3 <- train(scratch_event ~ ., 
+              data = training,
               method = "nnet",
               tuneGrid = data.frame(decay = ba_search$Best_Par["decay"],
                                     size = round(ba_search$Best_Par["size"], 0)),
               metric = "Kappa",
               trControl = ctrl3)
 
-# compare to original model
+# compare to previous model
 compare_models(mdl, mdl3)
-
+compare_models(mdl1, mdl3)
+compare_models(mdl2, mdl3)
