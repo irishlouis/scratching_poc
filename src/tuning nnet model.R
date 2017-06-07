@@ -18,7 +18,7 @@ ctrl <- trainControl(
   repeats=5
 )
 set.seed(456)
-mdl <- train(scratch_event ~.,
+nnet_default <- train(scratch_event ~.,
              method = "nnet",
              metric = "Kappa",
              data = training,
@@ -33,17 +33,14 @@ ctrl1 <- trainControl(
   search="random"
 )
 set.seed(456)
-mdl1 <- train(scratch_event ~.,
+nnet_random <- train(scratch_event ~.,
               method = "nnet",
               metric = "Kappa",
               data = training, 
               trControl = ctrl1, 
-              tuneLength = 10,
+              tuneLength = 20,
               trace = FALSE)
 
-# compare to original model
-## new model is little bit better
-compare_models(mdl, mdl1)
 
 ######################################################################################
 # give model specific tuning grid - SLOW
@@ -51,85 +48,54 @@ ctrl2 <- trainControl(
   method='repeatedcv',
   repeats= 5
 )
-nnet_grid <- expand.grid(size = c(1, 5, 8), 
+tune_grid <- expand.grid(size = c(1, 5, 8), 
                          decay = seq(0, .2, .02))
 
 # this gets very big very quickly
-message("note no. of models = ", nrow(nnet_grid), " x number of CV (5)")
+message("note no. of models = ", nrow(tune_grid), " x number of CV (5)")
 
 set.seed(456)
-mdl2 <- train(scratch_event ~.,
+nnet_grid <- train(scratch_event ~.,
               method = "nnet",
               metric = "Kappa",
               data = training, 
               trControl = ctrl2, 
-              tuneGrid = nnet_grid,
+              tuneGrid = tune_grid,
               trace = FALSE)
 
 # compare to previous model
-compare_models(mdl, mdl2)
-compare_models(mdl1, mdl2)
+compare_models(nnet_default, nnet_random)
+compare_models(nnet_default, nnet_grid)
+compare_models(nnet_random, nnet_grid)
 
 # cache models
-lapply(c("mdl", "mdl1", "mdl2"), cache)
+lapply(c("nnet_default", "nnet_random", "nnet_grid"), cache)
 
 # compare results on testing
-confusionMatrix(predict(mdl,  testing), testing$scratch_event)
-confusionMatrix(predict(mdl1, testing), testing$scratch_event)
-confusionMatrix(predict(mdl2, testing), testing$scratch_event)
+confusionMatrix(predict(nnet_default,  testing), testing$scratch_event)
+confusionMatrix(predict(nnet_random, testing), testing$scratch_event)
+confusionMatrix(predict(nnet_grid, testing), testing$scratch_event)
 
+# looks like default model does the best
+## size = 1 and decay = 0.1
 
+## train full final model on all data using these settings
+tune_grid <- expand.grid(size = c(1), 
+                         decay = c(0.1))
 
+# this gets very big very quickly
+message("note no. of models = ", nrow(tune_grid), " x number of CV (5)")
 
-
-######################################################################################
-# can we improve model performance with tuning paramters
-require(rBayesianOptimization)
-ctrl3 <- trainControl(method = "repeatedcv", 
-                      repeats = 5)
-
-# function to opt model
-## returns what is to be maximised (I'm using Kappa) - if looking to minimised something (RMSE) return -ive
-nnet.fit.bayes <- function(size, decay) {
-  size <- round(size, 0)
-  txt <- capture.output(
-    mod <- train(scratch_event ~ ., 
-                 data = training,
-                 method = "nnet",
-                 metric = "Kappa",
-                 trControl = ctrl3,
-                 tuneGrid = data.frame(size = size, decay = decay))
-  )
-  # don't care about Pred, so just return 0 value
-  list(Score = getTrainPerf(mod)[, "TrainKappa"], Pred = 0)
-}
-# set bounds for search
-bounds <- list(
-  size = c(size = 1, size = 50),
-  decay = c(decay = 0.0001, decay = .5))
-
-# search for optimum model parameters
-set.seed(8606)
-ba_search <- BayesianOptimization(FUN = nnet.fit.bayes, 
-                                  bounds = bounds,
-                                  init_points = 5, 
-                                  n_iter = 10,
-                                  acq = "ucb", 
-                                  kappa = 1, 
-                                  eps = 0.0,
-                                  verbose = TRUE)
-
-# use best found values to train model
 set.seed(456)
-mdl3 <- train(scratch_event ~ ., 
-              data = training,
-              method = "nnet",
-              tuneGrid = data.frame(decay = ba_search$Best_Par["decay"],
-                                    size = round(ba_search$Best_Par["size"], 0)),
-              metric = "Kappa",
-              trControl = ctrl3)
+nnet_final <- train(scratch_event ~.,
+                   method = "nnet",
+                   metric = "Kappa",
+                   data = poc.summary %>% select(-device_id, -epoch_id), 
+                   tuneGrid = tune_grid,
+                   trace = FALSE)
+summary(nnet_final)
+cache("nnet_final")
 
-# compare to previous model
-compare_models(mdl, mdl3)
-compare_models(mdl1, mdl3)
-compare_models(mdl2, mdl3)
+
+
+

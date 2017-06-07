@@ -60,8 +60,7 @@ load.data <- function(datafolder = NULL, epoch_length){
                                      vec.mag = sqrt(`Accelerometer X`^2 + `Accelerometer Y`^2 + `Accelerometer Z`^2),
                                      `Accelerometer X` = NULL,
                                      `Accelerometer Y` = NULL,
-                                     `Accelerometer Z` = NULL
-                                   ),][,':='(
+                                     `Accelerometer Z` = NULL),][,':='(
                                      time_minute = floor_date(datetime, "minute"),
                                      second = epoch_length * floor(second(datetime)/epoch_length)
                                    ),][,':='(
