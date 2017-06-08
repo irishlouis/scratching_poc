@@ -11,4 +11,4 @@ cache("test1.raw.data")
 
 ## load test data for unseen subj 
 test2.raw.data <- load.data(datafolder = "test2_data", epoch_length = 10)
-cache("test1.raw.data")
+cache("test2.raw.data")

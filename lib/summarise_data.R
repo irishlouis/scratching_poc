@@ -30,7 +30,7 @@ summarise.data <- function(data){
   } else {
     tmp1 <- lapply(1:floor(nrow(data) / 1e6), 
                    function(x) {
-                     message(paste(x, Sys.time()))
+                     message(paste(x, "-", Sys.time()))
                      return(data[(((x-1) * 1e6) + 1):(x * 1e6), 
                                     get.peak.summary(vec.mag, k = 25, freq = 100), 
                                    .(device_id, epoch_id) ] %>% 
