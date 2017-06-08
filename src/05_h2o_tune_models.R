@@ -97,8 +97,8 @@ rm(hyper_params)
 ##############################################################################################
 # Deeplearning Hyperparamters
 activation_opt <- c("Rectifier", "RectifierWithDropout") 
-hidden_opt <- list(c(10), c(50), c(100), c(10,10), c(20,15), c(50,50), 
-                   c(100, 100),  c(200,200), c(100, 100, 100))
+hidden_opt <- list(c(5,5), c(10,10), c(20,15), c(50,50), 
+                   c(100, 100),  c(10, 10, 10))
 l1_opt <- c(0, 1e-3, 1e-5)
 l2_opt <- c(0, 1e-3, 1e-5)
 hyper_params <- list(activation = activation_opt,
