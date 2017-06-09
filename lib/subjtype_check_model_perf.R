@@ -40,12 +40,14 @@ subjtype.check.model.perf <- function(seed, model.data, models, run.list = TRUE,
                             data=training, 
                             trControl=control1,
                             methodList= models, 
+                            trace = FALSE,
                             tuneLength = 5)
   } else {
     model_list <- caretList(scratch_event ~ ., 
                             data=training, 
                             trControl=control2,
                             methodList= models, 
+                            trace = FALSE,
                             tuneGrid = tuneGrid)
     
   }

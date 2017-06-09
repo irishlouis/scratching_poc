@@ -1,21 +1,17 @@
-# create model.data, filtering out epochs with low steps
-## drop steps - only want numeric
-model.data <- poc.summary
-
 # run models to select best performing model type on training data (/louis1)
-set.seed(98315)
+set.seed(984654)
 # set how many runs to do
-n_resamples <- 10
+n_resamples <- 30
 seeds <- round(rep(runif(n_resamples, 1, 10000000)), 0)
 
 # generate models using 30 different seeds to split training / testing and store Kappa values
-## C5.0 TAKES A LONG TIME TO CONVERGE
 subjtype.resample.results <- do.call(rbind, 
                               lapply(seeds, function(s) {
                                 print(which(seeds ==s))
-                                return(subjtype.check.model.perf(s, 
-                                                                 model.data, 
-                                                                 models = c('nnet', 'gbm', 'rf')))
+                                return(
+                                  subjtype.check.model.perf(s,
+                                                            zscale.poc.summary, 
+                                                            models = c('glm', 'nnet', 'rf')))
                               })
                             )
 
