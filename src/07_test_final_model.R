@@ -2,9 +2,6 @@ rm(data)
 rm(test1.raw.data)
 rm(summary)
 
-
-
-
 # test on same subject different dates
 test1.summary$prediction <- predict(caret_nnet_mdl, zscale.test1.summary)
 
@@ -18,6 +15,7 @@ predicted_scratching_events <- dplyr::bind_rows(
     filter(prediction == "scratch"),
   test2.summary %>% 
     mutate(prediction = predict(caret_nnet_mdl, zscale.test2.summary)) %>%
-    filter(prediction == "scratch"))
+    filter(prediction == "scratch")) %>%
+  arrange(device_id, epoch_id)
 
 cache("predicted_scratching_events")
