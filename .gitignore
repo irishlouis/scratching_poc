@@ -7,3 +7,4 @@ cachederby.log
 data/*
 cache/*
 cache_raw_data/*
+graphs/*
